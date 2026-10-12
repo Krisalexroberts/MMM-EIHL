@@ -1,0 +1,1 @@
+{"name":"mmm-eihl","version":"1.0.0","private":true,"description":"Compact EIHL scores, tables and playoffs for MagicMirror","scripts":{"test":"node --test test/*.test.js"},"dependencies":{"cheerio":"1.0.0"},"engines":{"node":">=18.17"}}
