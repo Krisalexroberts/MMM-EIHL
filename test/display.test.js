@@ -8,6 +8,18 @@ class Element {
   append(...nodes) { this.children.push(...nodes); }
   appendChild(node) { this.append(node); }
 }
+test('competition and knockout rounds are labelled without confusing Cup rounds with league playoffs', () => {
+  let module;
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../MMM-EIHL.js'), 'utf8'), {Module:{register:(_,m)=>module=m}});
+  const cup = {key:'cup',title:'Challenge Cup'}, league = {key:'league',title:'League'};
+  assert.equal(module.gameLabel({stage:'Semifinal',playoff:true},cup),'Challenge Cup · Semi-Final');
+  assert.equal(module.gameLabel({stage:'Final',playoff:true},league),'Play Offs · Final');
+  assert.equal(module.gameLabel({stage:'Quarterfinal'}, {title:'Playoffs'}),'Play Offs · Quarter-Final');
+  assert.equal(module.gameLabel({stage:'CC40'},cup),'Challenge Cup');
+  assert.equal(module.gameLabel({stage:'23'},league),'League');
+  assert.equal(module.gameLabel({stage:'Pre-season Friendly'},league),'Friendly');
+  assert.equal(module.gameLabel({competition:'Friendly',stage:''},league),'Friendly');
+});
 test('game-day rotation reuses the same score area and standings; overflow games paginate', () => {
   let module;
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../MMM-EIHL.js'), 'utf8'), {Module:{register:(_,m)=>module=m}, document:{createElement:t=>new Element(t)}, Intl, Date});

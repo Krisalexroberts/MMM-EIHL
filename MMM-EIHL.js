@@ -1,6 +1,18 @@
 Module.register("MMM-EIHL", {
   defaults: {width: "310px", updateInterval: 600000, liveUpdateInterval: 60000, rotateInterval: 20000, maxScores: 4, favoriteTeam: "", season: "", playoffWindowDays: 14},
   getStyles() { return ["MMM-EIHL.css"]; },
+  gameLabel(game, competition) {
+    const stage = String(game.stage || "").trim();
+    const friendly = /friendly|exhibition|pre.?season/i.test(stage);
+    const name = game.competition || (friendly ? "Friendly" : competition.title === "Playoffs" || (competition.key === "league" && game.playoff) ? "Play Offs" : competition.title);
+    let round = "";
+    if (/third.?place|3rd.?place/i.test(stage)) round = "Third-Place Play Off";
+    else if (/quarter[\s-]?final/i.test(stage)) round = "Quarter-Final";
+    else if (/semi[\s-]?final/i.test(stage)) round = "Semi-Final";
+    else if (/\bfinal\b/i.test(stage)) round = "Final";
+    else if (/elimination|qualification|qualifier|group|round|leg/i.test(stage)) round = stage;
+    return [name, round].filter(Boolean).join(" · ");
+  },
   start() {
     this.eihlData = null; this.page = 0;
     this.sendSocketNotification("EIHL_START", {...this.config, instanceId: this.identifier});
@@ -54,8 +66,11 @@ Module.register("MMM-EIHL", {
     for (const g of shown) {
       const row = el("div", "", "eihl-game" + (favorite(g.home) || favorite(g.away) ? " eihl-favorite" : ""));
       const date = new Date(g.date + "T12:00:00Z").toLocaleDateString("en-GB", {day:"numeric", month:"short", timeZone:"Europe/London"});
-      const status = g.live ? g.status : g.final ? "Final" : g.date === today ? (g.status || g.time) : "";
-      row.append(el("div", `${date}${status ? " \u00b7 " + status : ""}${c.title === "Playoffs" ? " \u00b7 " + g.stage : ""}`, "eihl-date" + (g.live ? " eihl-live" : "")));
+      const status = g.live ? g.status : g.final ? "FT" : g.date === today ? (g.status || g.time) : "";
+      const details = [date, this.gameLabel(g, c), status].filter(Boolean).join(" · ");
+      const meta = el("div", details, "eihl-date" + (g.live ? " eihl-live" : ""));
+      meta.title = details;
+      row.append(meta);
       const line = el("div", "", "eihl-match");
       line.append(el("span", g.home.split(" ")[0]), el("strong", (g.played || g.live || g.final) ? g.score.replace(":", "–") : g.time), el("span", g.away.split(" ")[0]));
       row.append(line); scoresPanel.append(row);
