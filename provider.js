@@ -85,4 +85,24 @@ async function load(config) {
   }
   return output;
 }
-module.exports = {discover, games, standings, load};
+function scoreboard(html) {
+  const $ = cheerio.load(html), result = {};
+  $('.scoreboard-item').each((_, el) => {
+    const item = $(el), columns = item.children('div');
+    const scores = columns.eq(2).children('div').toArray().map(n => clean($(n).text()));
+    if (scores.length !== 2 || !scores.every(s => /^\d+$/.test(s))) return;
+    const status = clean(columns.eq(3).text());
+    const final = /final|finished|full.?time/i.test(status);
+    const live = !final && /live|period|intermission|break|\d\s*[:.]\s*\d|\b[123](?:st|nd|rd)?\b|\bOT\b|\bSO\b/i.test(status);
+    result[item.attr('href')] = {score: scores.join(':'), status, live, final};
+  });
+  return result;
+}
+function applyLive(data, scores, timestamp = Date.now()) {
+  return {...data, liveUpdated: timestamp, liveError: false, competitions: data.competitions.map(c => ({...c, games: c.games.map(g => {
+    const current = scores[g.id];
+    return current ? {...g, ...current, played: current.final || (g.played && !current.live)} : {...g, live: false};
+  })}))};
+}
+async function loadLive() { return scoreboard(await fetchPage('/schedule')); }
+module.exports = {discover, games, standings, load, scoreboard, applyLive, loadLive};

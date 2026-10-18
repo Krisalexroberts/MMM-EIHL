@@ -3,6 +3,22 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const {discover, games, standings} = require("../provider");
+const {scoreboard, applyLive} = require("../provider");
+test("live scoreboard preserves zero scores, periods and explicit finals", () => {
+  const item = (id, status) => `<a class="scoreboard-item" href="/game/${id}"><div></div><div>SHE GUI</div><div><div>0</div><div>2</div></div><div>${status}</div></a>`;
+  const scores = scoreboard(item('1', '2nd 12:34') + item('2', 'final OT') + item('3', 'Postponed'));
+  assert.equal(scores['/game/1'].live, true);
+  assert.equal(scores['/game/1'].score, '0:2');
+  assert.equal(scores['/game/2'].live, false);
+  assert.equal(scores['/game/2'].final, true);
+  assert.equal(scores['/game/3'].live, false);
+  const data = {competitions:[{games:[{id:'/game/1', played:true},{id:'/game/2', played:false}]}]};
+  const updated = applyLive(data, scores, 123);
+  assert.equal(updated.competitions[0].games[0].played, false);
+  assert.equal(updated.competitions[0].games[1].played, true);
+  assert.equal(updated.liveUpdated, 123);
+  assert.equal(data.competitions[0].games[0].played, true);
+});
 const fixture = name => fs.readFileSync(path.join(__dirname, "fixtures", name + ".html"), "utf8");
 test("discovers matching season and Cup without hardcoded IDs", () => {
   const d = discover(fixture("league"));

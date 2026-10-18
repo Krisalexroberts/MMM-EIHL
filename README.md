@@ -34,6 +34,8 @@ Restart MagicMirror after installation. Node 18.17+ with built-in fetch is requi
 
 ## Playoffs and seasons
 
+On game days, the existing score area rotates between Recent scores and Today's games. In-progress games use the official scoreboard score and status, with a Live scores heading; before face-off they show start times, and completed games show Final. The score area stays the same height in both views, with up to `maxScores` games per view and extra games paginated. Standings stay beneath it. `liveUpdateInterval` defaults to 60000 milliseconds (one minute, minimum 30 seconds); this lightweight scoreboard poll runs only on days with scheduled games. The full fixture/table refresh keeps its normal ten-minute interval. Updates depend on the official site's publishing speed.
+
 The module discovers the latest published league and matching Cup season automatically. Set `season: "2026/2027"` to pin a season. League postseason fixtures marked Quarterfinal, Semifinal, Final or Playoff by EIHL are separated into a Playoffs page. This appears when at least one playoff fixture is within 14 days of today (configurable with `playoffWindowDays`), and shows recent scores plus the next fixtures and their rounds. Cup knockout scores stay in the Challenge Cup page; official group tables remain visible. Scores reflect the published schedule and are not guaranteed live/final game status. No aggregate winner or bracket is inferred from individual legs.
 
 The official site has no stable public API contract: if its HTML changes, the parser may require an update. Requests retry transient failures; unavailable feeds show a warning and retain the last successful standings.

@@ -4,6 +4,11 @@
 .eihl-label {display:flex; align-items:center; gap:8px; text-transform:uppercase; letter-spacing:1.4px; font-size:10px; color:var(--eihl-accent); margin:9px 0 4px;}
 .eihl-label::after {content:""; height:1px; flex:1; background:linear-gradient(to right,#354449,transparent);}
 .eihl-game {padding:3px 0; border-bottom:1px solid #20282b;}
+.eihl-scores {overflow:hidden; display:flow-root;}
+.eihl-scores > .eihl-label {margin:8px 0 3px;}
+.eihl-scores .eihl-game {height:42px; box-sizing:border-box;}
+.eihl-scores .eihl-date {white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.eihl-live {color:var(--eihl-accent);}
 .eihl-date {font-size:10px; color:#888;}
 .eihl-match {display:grid; grid-template-columns:1fr auto 1fr; gap:8px; align-items:center;}
 .eihl-match span:last-child {text-align:right;}

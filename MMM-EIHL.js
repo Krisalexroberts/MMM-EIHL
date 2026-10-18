@@ -1,5 +1,5 @@
 Module.register("MMM-EIHL", {
-  defaults: {width: "310px", updateInterval: 600000, rotateInterval: 20000, maxScores: 4, favoriteTeam: "", season: "", playoffWindowDays: 14},
+  defaults: {width: "310px", updateInterval: 600000, liveUpdateInterval: 60000, rotateInterval: 20000, maxScores: 4, favoriteTeam: "", season: "", playoffWindowDays: 14},
   getStyles() { return ["MMM-EIHL.css"]; },
   start() {
     this.eihlData = null; this.page = 0;
@@ -31,21 +31,37 @@ Module.register("MMM-EIHL", {
     }
     root.appendChild(el("div", "EIHL", "eihl-brand"));
     if (!pages.length) { root.appendChild(el("div", this.eihlData ? "EIHL unavailable · retrying" : "Loading EIHL…", "eihl-empty")); return root; }
-    const c = pages[this.page % pages.length];
+    const views = [];
+    for (const competition of pages) {
+      views.push({...competition, scoreView: "recent"});
+      const todayGames = competition.games.filter(g => g.date === today).sort((a,b) => Number(b.live) - Number(a.live) || a.time.localeCompare(b.time));
+      for (let offset = 0; offset < todayGames.length; offset += this.config.maxScores) {
+        views.push({...competition, scoreView: "today", todayGames: todayGames.slice(offset, offset + this.config.maxScores)});
+      }
+      if (competition.title === "Playoffs") {
+        const upcoming = competition.games.filter(g => !g.played && g.date > today).sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)).slice(0, this.config.maxScores);
+        if (upcoming.length) views.push({...competition, scoreView: "upcoming", todayGames: upcoming});
+      }
+    }
+    const c = views[this.page % views.length];
     root.appendChild(el("div", `${c.title} · ${this.eihlData.season || ""}`, "eihl-heading"));
     const favorite = team => this.config.favoriteTeam && team.toLowerCase().includes(this.config.favoriteTeam.toLowerCase());
-    root.appendChild(el("div", c.title === "Playoffs" ? "Playoff games" : "Recent scores", "eihl-label"));
-    const recent = c.games.filter(g => g.played && g.date <= today).sort((a,b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)).slice(0, this.config.maxScores);
-    const upcoming = c.title === "Playoffs" ? c.games.filter(g => !g.played && g.date >= today).sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time)).slice(0, this.config.maxScores) : [];
-    for (const g of [...recent, ...upcoming]) {
+    const scoresPanel = el("section", "", "eihl-scores");
+    scoresPanel.style.height = (25 + 42 * this.config.maxScores) + "px";
+    scoresPanel.appendChild(el("div", c.scoreView === "upcoming" ? "Upcoming playoffs" : c.scoreView === "today" ? (c.todayGames.some(g => g.live) ? "Live scores" : "Today's games") : "Recent scores", "eihl-label"));
+    const recent = c.games.filter(g => g.played && !g.live && (g.date < today || g.final)).sort((a,b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time)).slice(0, this.config.maxScores);
+    const shown = c.scoreView !== "recent" ? c.todayGames : recent;
+    for (const g of shown) {
       const row = el("div", "", "eihl-game" + (favorite(g.home) || favorite(g.away) ? " eihl-favorite" : ""));
       const date = new Date(g.date + "T12:00:00Z").toLocaleDateString("en-GB", {day:"numeric", month:"short", timeZone:"Europe/London"});
-      row.append(el("div", `${date}${c.title === "Playoffs" ? " · " + g.stage : ""}`, "eihl-date"));
+      const status = g.live ? g.status : g.final ? "Final" : g.date === today ? (g.status || g.time) : "";
+      row.append(el("div", `${date}${status ? " \u00b7 " + status : ""}${c.title === "Playoffs" ? " \u00b7 " + g.stage : ""}`, "eihl-date" + (g.live ? " eihl-live" : "")));
       const line = el("div", "", "eihl-match");
-      line.append(el("span", g.home.split(" ")[0]), el("strong", g.played ? g.score.replace(":", "–") : g.time), el("span", g.away.split(" ")[0]));
-      row.append(line); root.append(row);
+      line.append(el("span", g.home.split(" ")[0]), el("strong", (g.played || g.live || g.final) ? g.score.replace(":", "–") : g.time), el("span", g.away.split(" ")[0]));
+      row.append(line); scoresPanel.append(row);
     }
-    if (!recent.length && !upcoming.length) root.appendChild(el("div", "No results yet", "eihl-empty"));
+    if (!shown.length) scoresPanel.appendChild(el("div", "No results yet", "eihl-empty"));
+    root.append(scoresPanel);
     for (const group of c.groups) {
       root.appendChild(el("div", group.name ? `Group ${group.name}` : "Standings", "eihl-label"));
       const table = el("table", "", "eihl-table");
@@ -56,8 +72,8 @@ Module.register("MMM-EIHL", {
       }
       root.append(table);
     }
-    const stale = this.eihlData.errors?.length || Date.now() - c.updated > Math.max(1800000, this.config.updateInterval * 2);
-    root.appendChild(el("div", stale ? "Feed unavailable · last saved data" : `Updated ${new Date(c.updated).toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit", timeZone:"Europe/London"})} · ${this.page % pages.length + 1}/${pages.length}`, "eihl-footer"));
+    const stale = this.eihlData.errors?.length || this.eihlData.liveError || Date.now() - c.updated > Math.max(1800000, this.config.updateInterval * 2);
+    root.appendChild(el("div", stale ? "Feed unavailable · last saved data" : `Updated ${new Date(c.scoreView === "today" ? this.eihlData.liveUpdated || c.updated : c.updated).toLocaleTimeString("en-GB", {hour:"2-digit", minute:"2-digit", timeZone:"Europe/London"})} · ${this.page % views.length + 1}/${views.length}`, "eihl-footer"));
     return root;
   }
 });
